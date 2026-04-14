@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memorama de la Granja: Mamá y Cría</title>
+    <!-- Importar una fuente divertida y redondita para niños -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Fredoka One', cursive, sans-serif;
+            /* Un fondo de "granja" con montañas o pasto verde dibujado con CSS */
+            background: linear-gradient(180deg, #87CEEB 0%, #a2e0ff 40%, #85C83E 40%, #669D2A 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 3rem;
+            margin-bottom: 5px;
+            text-align: center;
+            text-shadow: 3px 3px 0px #F57200, -2px -2px 0px #F57200, 2px -2px 0px #F57200, -2px 2px 0px #F57200;
+            letter-spacing: 2px;
+        }
+
+        p.subtitle {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4 columnas */
+            gap: 15px;
+            max-width: 800px;
+            perspective: 1000px; /* Para el efecto 3D al voltear */
+        }
+
+        .card {
+            width: 120px;
+            height: 120px;
+            background-color: transparent;
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
+
+        /* Clase dinámica cuando la carta está volteada */
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* Clase cuando hacen "Match" para una pequeña animación de rebote */
+        .card.matched {
+            transform: rotateY(180deg) scale(1.05);
+            animation: cardBounce 0.5s ease-in-out;
+            cursor: default;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            border: 4px solid white;
+        }
+
+        /* Cara de atrás (la que ven al principio) */
+        .card-back {
+            background: repeating-linear-gradient(
+                45deg,
+                #FF9A9E,
+                #FF9A9E 10px,
+                #FECFEF 10px,
+                #FECFEF 20px
+            );
+            font-size: 3rem;
+        }
+
+        /* El icono de la granjita atrás */
+        .card-back::after {
+            content: '🚜';
+        }
+
+        /* Cara del frente (el animal) */
+        .card-front {
+            background-color: #FFFCDF;
+            transform: rotateY(180deg);
+            font-size: 3.5rem;
+        }
+
+        .animal-name {
+            font-size: 1rem;
+            margin-top: 5px;
+            color: #555;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
+
+        /* Animaciones */
+        @keyframes cardBounce {
+            0%, 100% { transform: rotateY(180deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.15); }
+        }
+
+        @keyframes textBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotateY(180deg) translateX(0); }
+            25% { transform: rotateY(180deg) translateX(-10px); }
+            75% { transform: rotateY(180deg) translateX(10px); }
+        }
+
+        .card.wrong {
+            animation: shake 0.4s;
+        }
+
+        /* Pantalla de victoria flotante */
+        #victory-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            text-align: center;
+        }
+
+        #victory-screen h2 {
+            font-size: 4rem;
+            color: #FFD700;
+            text-shadow: 0 0 10px #FF8C00;
+            margin-bottom: 20px;
+            animation: textBounce 1s infinite alternate;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            font-family: inherit;
+            background-color: #FF5722;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255,87,34,0.4);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+            background-color: #E64A19;
+        }
+
+        /* Nube decorativa */
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            /* simple nubes */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🐄 Memorama de la Granja 🐥</h1>
+    <p class="subtitle">¡Encuentra a cada mamá con su cría!</p>
+
+    <div class="game-board" id="board">
+        <!-- Las cartas se generarán aquí con JavaScript -->
+    </div>
+
+    <div id="victory-screen">
+        <h2>¡Felicidades! 🎉</h2>
+        <p class="subtitle">¡Encontraste a todas las familias de la granja!</p>
+        <button onclick="startGame()">Jugar otra vez</button>
+    </div>
+
+    <script>
+        // Los pares de animales (Mamá y su cría tienen el mismo ID)
+        const animalCards = [
+            { id: 1, type: 'mom', emoji: '🐔', name: 'Gallina' },
+            { id: 1, type: 'baby', emoji: '🐥', name: 'Pollito' },
+
+            { id: 2, type: 'mom', emoji: '🐄', name: 'Vaca' },
+            { id: 2, type: 'baby', emoji: '🐮', name: 'Becerro' },
+
+            { id: 3, type: 'mom', emoji: '🐖', name: 'Cerda' },
+            { id: 3, type: 'baby', emoji: '🐷', name: 'Cerdito' },
+
+            { id: 4, type: 'mom', emoji: '🐑', name: 'Oveja' },
+            { id: 4, type: 'baby', emoji: '🐏', name: 'Cordero' },
+
+            { id: 5, type: 'mom', emoji: '🦆', name: 'Pata' },
+            { id: 5, type: 'baby', emoji: '🐤', name: 'Patito' },
+
+            { id: 6, type: 'mom', emoji: '🐎', name: 'Yegua' },
+            { id: 6, type: 'baby', emoji: '🐴', name: 'Potrillo' }
+        ];
+
+        let board = document.getElementById('board');
+        let hasFlippedCard = false;
+        let lockBoard = false; // Para evitar que volteen más de 2 a la vez
+        let firstCard, secondCard;
+        let matchesFound = 0;
+
+        // Función para revolver (shuffle) el arreglo de cartas
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Iniciar o reiniciar el juego
+        function startGame() {
+            // Limpiar variables
+            board.innerHTML = '';
+            matchesFound = 0;
+            hasFlippedCard = false;
+            lockBoard = false;
+            firstCard = null;
+            secondCard = null;
+            document.getElementById('victory-screen').style.display = 'none';
+
+            // Mezclar cartas
+            const shuffledCards = shuffle([...animalCards]);
+
+            // Crear las cartas en el HTML
+            shuffledCards.forEach(cardData => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.dataset.id = cardData.id; // Para saber qué animal es
+
+                cardElement.innerHTML = `
+                    <div class="card-face card-front">
+                        <div>${cardData.emoji}</div>
+                        <div class="animal-name">${cardData.name}</div>
+                    </div>
+                    <div class="card-face card-back"></div>
+                `;
+
+                // Añadir evento de clic
+                cardElement.addEventListener('click', flipCard);
+                board.appendChild(cardElement);
+            });
+        }
+
+        // Función que se ejecuta al hacer clic en una carta
+        function flipCard() {
+            if (lockBoard) return; // Si el tablero está bloqueado, no hacer nada
+            if (this === firstCard) return; // No dejar dar doble clic en la misma carta
+
+            this.classList.add('flipped');
+
+            if (!hasFlippedCard) {
+                // Es el primer clic
+                hasFlippedCard = true;
+                firstCard = this;
+                return;
+            }
+
+            // Es el segundo clic
+            secondCard = this;
+            checkForMatch();
+        }
+
+        // Revisar si son iguales
+        function checkForMatch() {
+            let isMatch = firstCard.dataset.id === secondCard.dataset.id;
+            isMatch ? disableCards() : unflipCards();
+        }
+
+        // Si son iguales, dejarlas volteadas y celebrar
+        function disableCards() {
+            firstCard.classList.add('matched');
+            secondCard.classList.add('matched');
+
+            firstCard.removeEventListener('click', flipCard);
+            secondCard.removeEventListener('click', flipCard);
+
+            matchesFound++;
+            
+            // Si encontraron los 6 pares
+            if (matchesFound === 6) {
+                setTimeout(() => {
+                    document.getElementById('victory-screen').style.display = 'flex';
+                }, 800);
+            }
+
+            resetBoard();
+        }
+
+        // Si se equivocaron, voltearlas de regreso después de 1 segundo
+        function unflipCards() {
+            lockBoard = true; // Bloquea mientras se voltean
+            
+            firstCard.classList.add('wrong');
+            secondCard.classList.add('wrong');
+
+            setTimeout(() => {
+                firstCard.classList.remove('flipped', 'wrong');
+                secondCard.classList.remove('flipped', 'wrong');
+                resetBoard();
+            }, 1000); // 1 segundo para que los niños vean en qué se equivocaron
+        }
+
+        // Reiniciar variables para el siguiente turno
+        function resetBoard() {
+            [hasFlippedCard, lockBoard] = [false, false];
+            [firstCard, secondCard] = [null, null];
+        }
+
+        // Arrancar el juego la primera vez
+        startGame();
+
+    </script>
+</body>
+</html>
